@@ -57,7 +57,7 @@ public class Bot extends ListenerAdapter {
         // Taken from example
         JDA jda = JDABuilder.createLight(args[0], Collections.emptyList())
                 .addEventListeners(new Bot())
-                .setActivity(Activity.playing("Activation successful"))
+                .setActivity(Activity.competing("You can really put anything here huh"))
                 .build();
 
         System.out.println("Bot is running");
@@ -105,7 +105,7 @@ public class Bot extends ListenerAdapter {
                         ).queue(); // Queue both reply and edit
                 break;
             case "roll":
-                roll(event, event.getOption("dice").getAsString());
+                roll(event, event.getOption("dice", "d20", OptionMapping::getAsString));
                 break;
             case "leave":
                 leave(event);
@@ -146,6 +146,69 @@ public class Bot extends ListenerAdapter {
 
     private void roll(SlashCommandInteractionEvent event, String dice) {
 
+        dice = dice.toLowerCase().trim();
+
+        if (!dice.matches("^(\\d*d\\d+)(\\+((\\d*d\\d+)|\\d+))*$")) {
+            event.reply("Unable to parse roll.")
+                    .setEphemeral(true)
+                    .queue();
+            return;
+        }
+
+        boolean show = event.getOption("show", true, OptionMapping::getAsBoolean);
+        String string;
+        event.reply((string = event.getMember().getNickname() + " requested [" + dice + "]") + "...")
+                .setEphemeral(!show)
+                .queue();
+
+        new java.util.Random();
+        // since already verified the dice is parceable.
+
+        String[] split = dice.split("\\+");
+
+        int total = 0;
+
+        StringBuilder stringBuilder = new StringBuilder(string);
+
+        stringBuilder.append(". Result: ");
+
+        for (String roll: split) {
+            if (roll.contains("d")) {
+
+                stringBuilder.append("[");
+
+                String[] specifics = roll.split("d");
+                int numTimes = (specifics[0].matches("^\\d+$")) ? Integer.parseInt(specifics[0]) : 1;
+                int sides = Integer.parseInt(specifics[1]);
+
+                for (int i = 0; i < numTimes; i++) {
+                    int number = (int) Math.floor(Math.random() * sides) + 1;
+                    total += number;
+
+                    if (i > 0) {
+                        stringBuilder.append(",");
+                    }
+
+                    stringBuilder.append(number);
+
+                }
+
+                stringBuilder.append("]");
+
+            } else {
+                total += Integer.parseInt(roll);
+            }
+        }
+
+        stringBuilder.append(". Total: ").append(total);
+
+        string = stringBuilder.toString();
+
+        event.getHook().editOriginal(string).queue();
+    }
+
+    private boolean verifyRoll(String dice) {
+        return true;
     }
 
     private void leave(SlashCommandInteractionEvent event) {
