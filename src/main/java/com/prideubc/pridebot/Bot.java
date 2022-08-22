@@ -148,8 +148,11 @@ public class Bot extends ListenerAdapter {
 
         dice = dice.toLowerCase().trim();
 
-        if (!dice.matches("^(\\d*d\\d+)(\\+((\\d*d\\d+)|\\d+))*$")) {
-            event.reply("Unable to parse roll.")
+        if (!dice.matches("^(\\d*d\\d+)((\\+|-)((\\d*d\\d+)|\\d+))*$")) {
+            event.reply("Unable to parse roll. You put: [" + dice + "]." +
+                            "\n Common mistakes include:" +
+                            "\n - Forgetting the d before the number ([d20]-correct vs [20]-incorrect)" +
+                            "\n - Putting a negative after an addition ([d20-1]-correct vs [d20+-1]-incorrect")
                     .setEphemeral(true)
                     .queue();
             return;
@@ -164,6 +167,8 @@ public class Bot extends ListenerAdapter {
         new java.util.Random();
         // since already verified the dice is parceable.
 
+        dice = dice.replaceAll("-", "+-");
+
         String[] split = dice.split("\\+");
 
         int total = 0;
@@ -173,17 +178,31 @@ public class Bot extends ListenerAdapter {
         stringBuilder.append(". Result: ");
 
         for (String roll: split) {
+
             if (roll.contains("d")) {
 
                 stringBuilder.append("[");
+
+                int sign = 1;
+                if (roll.charAt(0) == '-') {
+                    sign = -1;
+                    roll = roll.substring(1);
+                }
 
                 String[] specifics = roll.split("d");
                 int numTimes = (specifics[0].matches("^\\d+$")) ? Integer.parseInt(specifics[0]) : 1;
                 int sides = Integer.parseInt(specifics[1]);
 
+                // extra checks
+
+                if (numTimes > 200) {
+                    event.getHook().editOriginal("Unable to roll " + numTimes + " dice. Limit is 200").queue();
+                    return;
+                }
+
                 for (int i = 0; i < numTimes; i++) {
                     int number = (int) Math.floor(Math.random() * sides) + 1;
-                    total += number;
+                    total += sign * number;
 
                     if (i > 0) {
                         stringBuilder.append(",");
